@@ -1,0 +1,19 @@
+{
+  "name": "TestAnalyticsRule",
+  "properties": {
+    "description": "This is a test analytics rule with a sample KQL query.",
+    "severity": "Medium",
+    "enabled": true,
+    "query": "SecurityEvent\n| where EventID == 4625\n| summarize count() by Account",
+    "queryFrequency": "PT1H",
+    "queryPeriod": "PT1H",
+    "triggerOperator": "GreaterThan",
+    "triggerThreshold": 0,
+    "suppressionEnabled": false,
+    "suppressionDuration": "PT1H",
+    "tactics": [
+      "InitialAccess"
+    ],
+    "alertRuleTemplateName": null
+  }
+}
