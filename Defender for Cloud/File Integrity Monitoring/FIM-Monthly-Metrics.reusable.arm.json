@@ -1,0 +1,70 @@
+{
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workbookDisplayName": {
+      "type": "string",
+      "defaultValue": "FIM Monthly Metrics",
+      "metadata": {
+        "description": "Friendly name shown in the Workbooks saved list or gallery."
+      }
+    },
+    "workbookType": {
+      "type": "string",
+      "defaultValue": "workbook",
+      "metadata": {
+        "description": "Workbook category. Usually workbook."
+      }
+    },
+    "workbookSourceId": {
+      "type": "string",
+      "defaultValue": "Azure Security Center",
+      "metadata": {
+        "description": "Resource/source the workbook is associated with. For Defender for Cloud workbooks, Azure Security Center is commonly used."
+      }
+    },
+    "workbookId": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "Unique GUID for this workbook instance. Use a fixed GUID if you want repeat deployments to update the same workbook."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the workbook resource."
+      }
+    },
+    "workspaceResourceIdsJson": {
+      "type": "string",
+      "metadata": {
+        "description": "JSON array string containing one or more Log Analytics workspace resource IDs used by each workbook query crossComponentResources property."
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('workbookId')]",
+      "type": "microsoft.insights/workbooks",
+      "location": "[parameters('location')]",
+      "apiVersion": "2022-04-01",
+      "dependsOn": [],
+      "kind": "shared",
+      "properties": {
+        "displayName": "[parameters('workbookDisplayName')]",
+        "serializedData": "[replace('{\"version\":\"Notebook/1.0\",\"items\":[{\"type\":9,\"content\":{\"version\":\"KqlParameterItem/1.0\",\"parameters\":[{\"id\":\"ee185768-a729-44aa-9304-1cfb9c276748\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"TimeRange\",\"type\":4,\"isRequired\":true,\"typeSettings\":{\"selectableValues\":[{\"durationMs\":604800000},{\"durationMs\":2592000000},{\"durationMs\":5184000000},{\"durationMs\":7776000000}]},\"timeContext\":{\"durationMs\":86400000},\"value\":{\"durationMs\":7776000000}}],\"style\":\"above\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\"},\"name\":\"parameters - 0\"},{\"type\":1,\"content\":{\"json\":\"# File Integrity Monitoring \\u2014 Monthly Metrics\\r\\n**Workspace(s):** configured at deployment through `workspaceResourceIdsJson`  \\r\\nUse the time range picker above to adjust the reporting window.\"},\"name\":\"text - 1\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| extend Month = format_datetime(TimeGenerated, \\\"yyyy-MM\\\")\\r\\n| summarize \\r\\n    TotalChanges = count(),\\r\\n    UniqueMachines = dcount(Computer),\\r\\n    UniqueFiles = dcount(FilePath)\\r\\n    by Month\\r\\n| order by Month asc\",\"size\":0,\"title\":\"Monthly Summary\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"timechart\"},\"customWidth\":\"50\",\"name\":\"query - 2\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| summarize Count = count() by ChangeType\\r\\n| order by Count desc\",\"size\":0,\"title\":\"Change Type Breakdown\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"piechart\"},\"customWidth\":\"50\",\"name\":\"query - 3\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| summarize DailyCount = count() by bin(TimeGenerated, 1d)\\r\\n| order by TimeGenerated asc\\r\\n| serialize\\r\\n| extend MovingAvg7d = (\\r\\n    DailyCount +\\r\\n    prev(DailyCount, 1, 0) +\\r\\n    prev(DailyCount, 2, 0) +\\r\\n    prev(DailyCount, 3, 0) +\\r\\n    prev(DailyCount, 4, 0) +\\r\\n    prev(DailyCount, 5, 0) +\\r\\n    prev(DailyCount, 6, 0)\\r\\n) / 7.0\\r\\n| project TimeGenerated, DailyCount, MovingAvg7d\",\"size\":0,\"title\":\"Daily Change Trend with 7-Day Moving Average\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"linechart\",\"chartSettings\":{\"seriesLabelSettings\":[{\"seriesName\":\"DailyCount\",\"label\":\"Daily Changes\"},{\"seriesName\":\"MovingAvg7d\",\"label\":\"7-Day Moving Avg\"}]}},\"name\":\"query - 4\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| summarize ChangeCount = count() by FilePath, Computer, ChangeType\\r\\n| top 10 by ChangeCount desc\\r\\n| project FilePath, Computer, ChangeType, ChangeCount\",\"size\":0,\"title\":\"Top 10 Most Changed Files\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"barchart\"},\"customWidth\":\"50\",\"name\":\"query - 5\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| summarize ChangeCount = count() by Computer\\r\\n| top 10 by ChangeCount desc\\r\\n| order by ChangeCount desc\",\"size\":0,\"title\":\"Top Machines by Change Volume\",\"timeContext\":{\"durationMs\":86400000},\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"barchart\"},\"customWidth\":\"50\",\"name\":\"query - 6\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| extend HourOfDay = hourofday(TimeGenerated)\\r\\n| extend DayOfWeek = case(\\r\\n    dayofweek(TimeGenerated) == 0d, \\\"Sunday\\\",\\r\\n    dayofweek(TimeGenerated) == 1d, \\\"Monday\\\",\\r\\n    dayofweek(TimeGenerated) == 2d, \\\"Tuesday\\\",\\r\\n    dayofweek(TimeGenerated) == 3d, \\\"Wednesday\\\",\\r\\n    dayofweek(TimeGenerated) == 4d, \\\"Thursday\\\",\\r\\n    dayofweek(TimeGenerated) == 5d, \\\"Friday\\\",\\r\\n    \\\"Saturday\\\")\\r\\n| summarize Count = count() by HourOfDay, DayOfWeek\\r\\n| order by DayOfWeek asc, HourOfDay asc\",\"size\":0,\"timeContextFromParameter\":\"TimeRange\",\"exportToExcelOptions\":\"all\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"table\",\"gridSettings\":{\"formatters\":[{\"columnMatch\":\"Count\",\"formatter\":8,\"formatOptions\":{\"palette\":\"redGreen\"}}]}},\"name\":\"query - 7\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"let AllMachines = MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated > ago(180d)\\r\\n| summarize LastSeen = max(TimeGenerated) by Computer;\\r\\nlet ActiveMachines = MDCFileIntegrityMonitoringEvents\\r\\n| where TimeGenerated {TimeRange}\\r\\n| summarize by Computer;\\r\\nAllMachines\\r\\n| join kind=leftanti ActiveMachines on Computer\\r\\n| project Computer, LastSeen\\r\\n| order by LastSeen asc\",\"size\":0,\"title\":\"Machines Silent During Selected Period\",\"timeContextFromParameter\":\"TimeRange\",\"exportToExcelOptions\":\"all\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":{{workspaceResourceIdsJson}},\"visualization\":\"table\"},\"name\":\"query - 8\"}],\"isLocked\":false,\"fallbackResourceIds\":[\"Azure Security Center\"]}', '{{workspaceResourceIdsJson}}', parameters('workspaceResourceIdsJson'))]",
+        "version": "1.0",
+        "sourceId": "[parameters('workbookSourceId')]",
+        "category": "[parameters('workbookType')]"
+      }
+    }
+  ],
+  "outputs": {
+    "workbookId": {
+      "type": "string",
+      "value": "[resourceId( 'microsoft.insights/workbooks', parameters('workbookId'))]"
+    }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+}
