@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workflowName": {
+      "value": "<ClientName>-FIM-Reporting"
+    },
+    "location": {
+      "value": "<azure-region>"
+    },
+    "workflowState": {
+      "value": "Enabled"
+    },
+    "azureMonitorLogsConnectionResourceId": {
+      "value": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Web/connections/<azuremonitorlogs-connection-name>"
+    },
+    "azureMonitorLogsConnectionName": {
+      "value": "<azuremonitorlogs-connection-name>"
+    },
+    "targetSubscriptionId": {
+      "value": "<subscription-id>"
+    },
+    "targetResourceGroupName": {
+      "value": "<resource-group-containing-workspace>"
+    },
+    "targetWorkspaceName": {
+      "value": "<log-analytics-workspace-name>"
+    },
+    "queryTimeRange": {
+      "value": "Last 7 days"
+    },
+    "fimKqlQuery": {
+      "value": "MDCFileIntegrityMonitoringEvents\n| order by TimeGenerated\n| project-keep Computer, ChangeType, FilePath, FileName, InitiatingProcessCreationTime, InitProcImageLastAccessTimeUtc, InitProcImageLastWriteTimeUtc, TimeGenerated, RegistryKey, OldValueFullRegistryKey, InitiatingProcessAccountDomainName, InitiatingProcessAccountName"
+    },
+    "zendeskSubdomain": {
+      "value": "<zendesk-subdomain>"
+    },
+    "zendeskAuthorizationHeader": {
+      "value": "<secure-value-supplied-at-deployment-not-committed>"
+    },
+    "clientName": {
+      "value": "<ClientName>"
+    },
+    "recipientName": {
+      "value": "<Recipient Name or Team>"
+    },
+    "reportFilePrefix": {
+      "value": "<ClientName>"
+    },
+    "clientTag": {
+      "value": "<clientname-lowercase>"
+    },
+    "zendeskAssigneeId": {
+      "value": 0
+    },
+    "zendeskSubmitterId": {
+      "value": 0
+    },
+    "zendeskRequesterId": {
+      "value": 0
+    }
+  }
+}

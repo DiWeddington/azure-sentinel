@@ -1,0 +1,487 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workflowName": {
+      "type": "string",
+      "defaultValue": "Client-FIM-Reporting"
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for the Logic App and managed API connection location."
+      }
+    },
+    "workflowState": {
+      "type": "string",
+      "defaultValue": "Enabled",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "azureMonitorLogsConnectionResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of an existing Microsoft.Web/connections Azure Monitor Logs API connection."
+      }
+    },
+    "azureMonitorLogsConnectionName": {
+      "type": "string",
+      "defaultValue": "azuremonitorlogs"
+    },
+    "targetSubscriptionId": {
+      "type": "string"
+    },
+    "targetResourceGroupName": {
+      "type": "string"
+    },
+    "targetWorkspaceName": {
+      "type": "string"
+    },
+    "queryTimeRange": {
+      "type": "string",
+      "defaultValue": "Last 7 days"
+    },
+    "fimKqlQuery": {
+      "type": "string",
+      "metadata": {
+        "description": "KQL used to generate the CSV FIM report."
+      }
+    },
+    "zendeskSubdomain": {
+      "type": "string"
+    },
+    "zendeskAuthorizationHeader": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Zendesk Authorization header value. Example: Basic <base64 email/token:api_token>. Do not hard-code this in source control."
+      }
+    },
+    "clientName": {
+      "type": "string"
+    },
+    "recipientName": {
+      "type": "string"
+    },
+    "reportFilePrefix": {
+      "type": "string"
+    },
+    "clientTag": {
+      "type": "string"
+    },
+    "zendeskAssigneeId": {
+      "type": "int"
+    },
+    "zendeskSubmitterId": {
+      "type": "int"
+    },
+    "zendeskRequesterId": {
+      "type": "int"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2017-07-01",
+      "name": "[parameters('workflowName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "azn_m_runsfailedrate": "default@10",
+        "azn_m_triggersfailed": "default@0"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "state": "[parameters('workflowState')]",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            },
+            "ZendeskAuth": {
+              "type": "SecureString"
+            },
+            "ZendeskSubdomain": {
+              "type": "String"
+            },
+            "ClientName": {
+              "type": "String"
+            },
+            "RecipientName": {
+              "type": "String"
+            },
+            "ReportFilePrefix": {
+              "type": "String"
+            },
+            "ClientTag": {
+              "type": "String"
+            },
+            "ZendeskAssigneeId": {
+              "type": "Int"
+            },
+            "ZendeskSubmitterId": {
+              "type": "Int"
+            },
+            "ZendeskRequesterId": {
+              "type": "Int"
+            },
+            "FimKqlQuery": {
+              "type": "String"
+            },
+            "TargetSubscriptionId": {
+              "type": "String"
+            },
+            "TargetResourceGroupName": {
+              "type": "String"
+            },
+            "TargetWorkspaceName": {
+              "type": "String"
+            },
+            "QueryTimeRange": {
+              "type": "String"
+            }
+          },
+          "triggers": {
+            "Recurrence": {
+              "recurrence": {
+                "interval": 1,
+                "frequency": "Week",
+                "timeZone": "Eastern Standard Time",
+                "schedule": {
+                  "weekDays": [
+                    "Friday"
+                  ]
+                }
+              },
+              "evaluatedRecurrence": {
+                "interval": 1,
+                "frequency": "Week",
+                "timeZone": "Eastern Standard Time",
+                "schedule": {
+                  "weekDays": [
+                    "Friday"
+                  ]
+                }
+              },
+              "type": "Recurrence"
+            }
+          },
+          "actions": {
+            "Initialize_Zendesk_Auth": {
+              "runAfter": {},
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "ZendeskAuth",
+                    "type": "string",
+                    "value": "@parameters('ZendeskAuth')"
+                  }
+                ]
+              }
+            },
+            "Initialize_Zendesk_Subdomain": {
+              "runAfter": {
+                "Initialize_Zendesk_Auth": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "ZendeskSubdomain",
+                    "type": "string",
+                    "value": "@parameters('ZendeskSubdomain')"
+                  }
+                ]
+              }
+            },
+            "Run_query_and_list_results": {
+              "runAfter": {
+                "Initialize_Zendesk_Subdomain": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@parameters('FimKqlQuery')",
+                "path": "/queryData",
+                "queries": {
+                  "subscriptions": "@parameters('TargetSubscriptionId')",
+                  "resourcegroups": "@parameters('TargetResourceGroupName')",
+                  "resourcetype": "Log Analytics Workspace",
+                  "resourcename": "@parameters('TargetWorkspaceName')",
+                  "timerange": "@parameters('QueryTimeRange')"
+                }
+              }
+            },
+            "Parse_JSON": {
+              "runAfter": {
+                "Run_query_and_list_results": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('Run_query_and_list_results')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "Computer": {
+                            "type": "string"
+                          },
+                          "ChangeType": {
+                            "type": "string"
+                          },
+                          "FilePath": {
+                            "type": "string"
+                          },
+                          "FileName": {
+                            "type": "string"
+                          },
+                          "InitiatingProcessCreationTime": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "InitProcImageLastAccessTimeUtc": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "InitProcImageLastWriteTimeUtc": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "TimeGenerated": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "Computer",
+                          "ChangeType",
+                          "FilePath",
+                          "FileName",
+                          "TimeGenerated"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Initialize_Record_Count": {
+              "runAfter": {
+                "Parse_JSON": [
+                  "Succeeded"
+                ]
+              },
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "RecordCount",
+                    "type": "integer",
+                    "value": "@length(body('Parse_JSON')?['value'])"
+                  }
+                ]
+              }
+            },
+            "Check_if_results_exist": {
+              "actions": {
+                "Create_CSV_Report": {
+                  "type": "Table",
+                  "inputs": {
+                    "from": "@body('Parse_JSON')?['value']",
+                    "format": "CSV"
+                  }
+                },
+                "Upload_CSV_to_Zendesk": {
+                  "runAfter": {
+                    "Create_CSV_Report": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://@{variables('ZendeskSubdomain')}.zendesk.com/api/v2/uploads.json?filename=@{parameters('ReportFilePrefix')}_FIM_Report_@{formatDateTime(utcNow(),'yyyyMMdd')}.csv",
+                    "method": "POST",
+                    "headers": {
+                      "Content-Type": "application/octet-stream",
+                      "Authorization": "@{variables('ZendeskAuth')}"
+                    },
+                    "body": "@body('Create_CSV_Report')"
+                  }
+                },
+                "Parse_Upload_Token": {
+                  "runAfter": {
+                    "Upload_CSV_to_Zendesk": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('Upload_CSV_to_Zendesk')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "object",
+                          "properties": {
+                            "token": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "Create_Zendesk_Ticket": {
+                  "runAfter": {
+                    "Parse_Upload_Token": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://@{variables('ZendeskSubdomain')}.zendesk.com/api/v2/tickets.json",
+                    "method": "POST",
+                    "headers": {
+                      "Content-Type": "application/json",
+                      "Authorization": "@{variables('ZendeskAuth')}"
+                    },
+                    "body": {
+                      "ticket": {
+                        "subject": "@{parameters('ClientName')} - Weekly FIM Report - @{formatDateTime(utcNow(),'MM/dd/yyyy')}",
+                        "comment": {
+                          "body": "Hello,\n\nThis week's FIM report is attached.\n\n\ud83d\udcca SUMMARY STATISTICS:\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\u2022 Total Changes Detected: @{variables('RecordCount')} file change(s)\n\u2022 Reporting Period: @{parameters('QueryTimeRange')}\n\u2022 Week Ending: @{formatDateTime(utcNow(),'MMMM dd, yyyy')}\n\u2022 Recipient: @{parameters('RecipientName')}\n\nPlease review the attached CSV file for detailed information including:\n- Computer names\n- Change types\n- File paths and names\n- Process creation times\n- Timestamps\n\n\u26a0\ufe0f Note: Please review any unexpected changes immediately.\n\nThank you,\nSecurity Operations Team\n\n---\nThis is an automated report generated by the FIM monitoring workflow.",
+                          "uploads": [
+                            "@{body('Parse_Upload_Token')?['upload']?['token']}"
+                          ]
+                        },
+                        "priority": "normal",
+                        "status": "open",
+                        "type": "incident",
+                        "assignee_id": "@parameters('ZendeskAssigneeId')",
+                        "submitter_id": "@parameters('ZendeskSubmitterId')",
+                        "requester_id": "@parameters('ZendeskRequesterId')",
+                        "tags": [
+                          "fim",
+                          "security",
+                          "automated",
+                          "@{parameters('ClientTag')}",
+                          "weekly-report"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Initialize_Record_Count": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {}
+              },
+              "expression": {
+                "and": [
+                  {
+                    "greater": [
+                      "@length(body('Parse_JSON')?['value'])",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuremonitorlogs": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuremonitorlogs')]",
+                "connectionId": "[parameters('azureMonitorLogsConnectionResourceId')]",
+                "connectionName": "[parameters('azureMonitorLogsConnectionName')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  }
+                }
+              }
+            }
+          },
+          "ZendeskAuth": {
+            "value": "[parameters('zendeskAuthorizationHeader')]"
+          },
+          "ZendeskSubdomain": {
+            "value": "[parameters('zendeskSubdomain')]"
+          },
+          "ClientName": {
+            "value": "[parameters('clientName')]"
+          },
+          "RecipientName": {
+            "value": "[parameters('recipientName')]"
+          },
+          "ReportFilePrefix": {
+            "value": "[parameters('reportFilePrefix')]"
+          },
+          "ClientTag": {
+            "value": "[parameters('clientTag')]"
+          },
+          "ZendeskAssigneeId": {
+            "value": "[parameters('zendeskAssigneeId')]"
+          },
+          "ZendeskSubmitterId": {
+            "value": "[parameters('zendeskSubmitterId')]"
+          },
+          "ZendeskRequesterId": {
+            "value": "[parameters('zendeskRequesterId')]"
+          },
+          "FimKqlQuery": {
+            "value": "[parameters('fimKqlQuery')]"
+          },
+          "TargetSubscriptionId": {
+            "value": "[parameters('targetSubscriptionId')]"
+          },
+          "TargetResourceGroupName": {
+            "value": "[parameters('targetResourceGroupName')]"
+          },
+          "TargetWorkspaceName": {
+            "value": "[parameters('targetWorkspaceName')]"
+          },
+          "QueryTimeRange": {
+            "value": "[parameters('queryTimeRange')]"
+          }
+        }
+      }
+    }
+  ]
+}
